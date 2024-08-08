@@ -1,0 +1,76 @@
+name: Process File
+
+on:
+  repository_dispatch:
+    types: [process-file]
+
+jobs:
+  process-file:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas openpyxl
+
+      - name: Process file
+        run: |
+          echo "${{ github.event.client_payload.content }}" | base64 -d > /tmp/${{ github.event.client_payload.filename }}
+          python process_file.py /tmp/${{ github.event.client_payload.filename }}
+
+      - name: Commit results
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add results/
+          git commit -m 'Processed file and added results'
+          git push
+
+# process_file.py
+
+import pandas as pd
+import sys
+import os
+
+def process_file(file_path):
+    data = pd.read_excel(file_path)
+
+    num_platos = data.shape[0]
+
+    headers = []
+    for i in range(1, num_platos + 1):
+        headers.extend([
+            f"Plato {i} (ESP)", f"Plato {i} (ENG)", f"Precio {i}", f"Descripción {i} (ESP)", f"Descripción {i} (ENG)"
+        ])
+
+    data_transformed = pd.DataFrame(columns=headers)
+
+    for index, row in data.iterrows():
+        row_data = row.values.tolist()
+        if len(row_data) < len(headers):
+            row_data.extend([None] * (len(headers) - len(row_data)))
+        data_transformed.loc[0, headers[index*5:(index+1)*5]] = row_data[:5]
+
+    output_xlsx_path = 'results/transformado.xlsx'
+    data_transformed.to_excel(output_xlsx_path, index=False)
+
+    transformed_data = pd.read_excel(output_xlsx_path)
+
+    txt_data = transformed_data.to_csv(sep='\t', index=False, encoding='windows-1252', errors='ignore')
+
+    output_txt_path = 'results/transformado.txt'
+    with open(output_txt_path, 'w', encoding='windows-1252', errors='ignore') as file:
+        file.write(txt_data)
+
+if __name__ == '__main__':
+    file_path = sys.argv[1]
+    process_file(file_path)
