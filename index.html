@@ -25,11 +25,11 @@
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('https://api.github.com/Food-menu/faguilera3/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/dispatches', {
+      const response = await fetch('https://api.github.com/repos/faguilera3/Food-menu/dispatches', {
         method: 'POST',
         headers: {
           'Accept': 'application/vnd.github.everest-preview+json',
-          'Authorization': 'token YOUR_GITHUB_TOKEN'
+          'Authorization': 'token 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'
         },
         body: JSON.stringify({
           event_type: 'process-file',
